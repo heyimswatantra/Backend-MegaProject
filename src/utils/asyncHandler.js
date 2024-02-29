@@ -4,7 +4,7 @@
 // this ensures that execution is handled asynchronously and any error are passed on to next middleware by "next"
 
 const asyncHandler = (requestHandler) => {
-    (req, res, next) => {
+    return (req, res, next) => {
         Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
     }
 }
