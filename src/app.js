@@ -18,6 +18,8 @@ app.use(cookieParser())
 import userRouter from "./routes/user.routes.js"
 
 // routes declaration
+// since humne router ko extract kiya h, to 
+// routes declare karne ke liye ,we have to use it as a middleware
 app.use("/api/v1/users", userRouter)
 
 
