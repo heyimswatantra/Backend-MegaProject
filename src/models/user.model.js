@@ -51,12 +51,12 @@ const userSchema = new Schema(
     }
 )
 
+// logic error tha, causing plain pass to be upload into DB
 userSchema.pre("save", async function (next) {
-    if (this.isModified("password"))  { 
-        return next();
+    if (!this.isModified("password")) {
+        return next()
     }
-    this.password = await bcrypt.hash(this.password, 10 )
-    next()
+    this.password = await bcrypt.hash(this.password, 10)
 })
 
 // injecting methods in schema

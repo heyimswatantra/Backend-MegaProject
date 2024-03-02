@@ -6,9 +6,13 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
+        // console.log("userId :: ", userId);
         const user = await User.findById(userId)
+        // console.log(user);
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
+        console.log("accessToken :: ", accessToken)
+        console.log("refreshtoken :: ", refreshToken);
 
         // setting the refesh token in user document
         user.refreshToken = refreshToken
@@ -114,8 +118,9 @@ const loginUser = asyncHandler( async (req, res) => {
     */
 
     const {username, password, email} = req.body
+    // console.log(req.body);
     
-    if(!username || !email) {
+    if(!(username || email)) {
         throw new ApiError(400, "Username or Email is required")
     }
 
@@ -138,11 +143,15 @@ const loginUser = asyncHandler( async (req, res) => {
     }
 
     // access and refresh token banao
+    // console.log(user);
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
 
-    const logginedUser = user.select("-password -refreshToken")
+    // error: .select is not a method
+    // const logginedUser = user.select("-password -refreshToken")
 
-    // deifi
+    const logginedUser = await User.findById(user._id).select("-password -refreshToken")
+
+    // defining options to be passed in .cookie()
     const options = {
         httpOnly: true,
         secure: true
@@ -161,9 +170,6 @@ const loginUser = asyncHandler( async (req, res) => {
             "User Logged In Successfully"
         )
     )
-    // send cookies 
-
-
 
 })
 
