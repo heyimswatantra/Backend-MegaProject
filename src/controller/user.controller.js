@@ -4,6 +4,26 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
+const generateAccessAndRefreshToken = async (userId) => {
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        // setting the refesh token in user document
+        user.refreshToken = refreshToken
+
+        // we must save the change to propogate them,
+        // but when we use call save() it fires the mongo models and all fields are validate again,
+        // to avoid that we can pass an option "validateBeforeSave" : "false"
+        await user.save({ validateBeforeSave: false })
+
+        return {accessToken, refreshToken}
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+    }
+}
 
 const registerUser = asyncHandler( async (req, res) => {
     // steps to register a user
@@ -83,4 +103,99 @@ const registerUser = asyncHandler( async (req, res) => {
 
 })
 
-export {registerUser}
+const loginUser = asyncHandler( async (req, res) => {
+    /*
+    req.body se data le aao
+    username OR email ka access lo
+    check in DB if user exists
+    perform password check
+    generate access and refresh token
+    send cookies
+    */
+
+    const {username, password, email} = req.body
+    
+    if(!username || !email) {
+        throw new ApiError(400, "Username or Email is required")
+    }
+
+    // finding a user with username or email
+    // we can use "$or" operator if we want to query on multiple objects
+    // "$or" is a mongo operator, it takes an arr objects
+    const user = await User.findOne({
+        $or: [{username}, {email}]
+    })
+
+    if(!user) {
+        throw new ApiError(404, "User does not exists")
+    }
+
+    // password check
+    const isPasswordValid = await user.isPasswordCorrect(password)
+
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Incorrect Password")
+    }
+
+    // access and refresh token banao
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
+
+    const logginedUser = user.select("-password -refreshToken")
+
+    // deifi
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: logginedUser, accessToken, refreshToken
+            },
+            "User Logged In Successfully"
+        )
+    )
+    // send cookies 
+
+
+
+})
+
+const logoutUser = asyncHandler (async (req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(
+        new ApiResponse(200, {}, "User Logged Out")
+    )
+})
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser
+}
