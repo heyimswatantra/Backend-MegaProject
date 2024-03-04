@@ -264,7 +264,9 @@ const changePassword = asyncHandler( async (req, res) => {
 const getCurrentUser = asyncHandler( async (req, res) => {
     return res
     .status(200)
-    .json(200, req.user, "Current User fetched successfully")
+    .json(
+        new ApiResponse(200, req.user, "Current User fetched successfully")
+    )
 })
 
 const updateAccountDetails = asyncHandler (async (req, res) => {
@@ -431,7 +433,7 @@ const getWatchHistory = asyncHandler (async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                _id: mongoose.Types.ObjectId(req.user._id)
+                _id: new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
