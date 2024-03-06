@@ -15,6 +15,61 @@ const getAllVideos = asyncHandler(async (req, res) => {
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description} = req.body
     // TODO: get video, upload to cloudinary, create video
+    const userId = req.user?._id
+
+    // get the video and thumbnail files
+    // uploadon cloudinary, get its url and duration
+    // create new vidoe doc with details obtained
+
+    const videoLocalPath = req.files?.videoFile[0]?.path;
+    const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
+    const videoFileRegex = /\.(mp4|mkv|avi|mov|wmv|flv)$/i;
+    const thumbnailRegex = /\.(jpg|jpeg|png)$/i;
+    
+    if (!videoLocalPath) {
+        throw new ApiError(400, "Video is required")
+    }
+    if (!thumbnailLocalPath) {
+        throw new ApiError(400, "Thumbnail is required")
+    }
+    if (!videoFileRegex.test(videoLocalPath)) {
+        throw new ApiError(500, "Invalid video file")
+    }
+    if (!thumbnailRegex.test(thumbnailLocalPath)) {
+        throw new ApiError(500, "Invalid thumbnail file")
+    }
+
+    try {
+        const uploadVideo = await uploadOnCloudinary(videoLocalPath)
+        const uploadThumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    
+        if (!uploadVideo) {
+            throw new ApiError(500, "Something went wrong while uploading video on cloudinary")
+        }
+        console.log(uploadVideo);
+        if (!uploadThumbnail) {
+            throw new ApiError(500, "Something went wrong while uploading thumbnail on cloudinary")
+        }
+    
+        const newVideo = await Video.create({
+            videoFile: uploadVideo.url,
+            thumbnail: uploadThumbnail.url,
+            title,
+            description,
+            owner: userId,
+            duration: uploadVideo.duration
+        })
+    
+        if (!newVideo) {
+            throw new ApiError(500, "Something went wrong while uploading video")
+        }
+    
+        return res
+        .status(200)
+        .json(new ApiResponse(200, newVideo, "video uploaded successfully"))
+    } catch (error) {
+        throw new ApiError(500, error?.message || "Something went wrong while uploading video")
+    }
 })
 
 const getVideoById = asyncHandler(async (req, res) => {
