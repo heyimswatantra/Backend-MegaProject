@@ -17,12 +17,14 @@ app.use(cookieParser())
 // routes import
 import userRouter from "./routes/user.routes.js"
 import subscriptionRouter from "./routes/subscription.routes.js"
+import tweetRouter from "./routes/tweet.routes.js"
 
 // routes declaration
 // since humne router ko extract kiya h, to 
 // routes declare karne ke liye ,we have to use it as a middleware
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/subscriptions", subscriptionRouter)
+app.use("/api/v1/tweets", tweetRouter)
 
 
 
