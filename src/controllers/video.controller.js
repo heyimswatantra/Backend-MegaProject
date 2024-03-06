@@ -13,7 +13,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
-    const { title, description} = req.body
+    const { title, description, tags} = req.body
     // TODO: get video, upload to cloudinary, create video
     const userId = req.user?._id
 
@@ -46,7 +46,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         if (!uploadVideo) {
             throw new ApiError(500, "Something went wrong while uploading video on cloudinary")
         }
-        console.log(uploadVideo);
+        // console.log(uploadVideo);
         if (!uploadThumbnail) {
             throw new ApiError(500, "Something went wrong while uploading thumbnail on cloudinary")
         }
@@ -57,7 +57,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
             title,
             description,
             owner: userId,
-            duration: uploadVideo.duration
+            duration: uploadVideo.duration,
+            tags: [tags]
         })
     
         if (!newVideo) {
@@ -75,21 +76,153 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: get video by id
+    // find and return the video
+
+    if (!videoId) {
+        throw new ApiError(500, "VideoId is required")
+    }
+
+    try {
+        const videoViews = await Video.findById(videoId)
+        // console.log(videoViews.views);
+        videoViews.views++
+        const videoResponse = await Video.findByIdAndUpdate(
+            videoId,
+            {
+                views: videoViews.views
+            }
+        )
+    
+        if (!videoResponse) {
+            return res
+            .status(400)
+            .json(new ApiResponse(400, {}, "Something went wrong while fetching video from DB"))
+        }
+    
+        if (!videoResponse.isPublished) {
+            return res
+            .status(200)
+            .json(new ApiResponse(200, {}, "This video has been made private by the video owner"))
+        }
+        return res
+        .status(200)
+        .json(new ApiResponse(200, videoResponse, "Video fetched successfully"))
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while fetching video")
+    }
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: update video details like title, description, thumbnail
+    const { title, description, isPublished, tags } = req.body
+    const tagArr = tags?.split(", ")
 
+    if (!videoId) {
+        throw new ApiError(500, "Video Id is required")
+    }
+
+    try {
+
+        const thumbnailLocalPath = req.file?.path
+        // scoping caused error here :(
+        let thumbnailResponse;
+        if (thumbnailLocalPath) {
+            thumbnailResponse = await uploadOnCloudinary(thumbnailLocalPath)
+
+            if (!thumbnailResponse) {
+                throw new ApiError(500, "something went wrong while uploading thumbnail")
+            }
+        }
+
+        const updateData = {
+            thumbnail: thumbnailResponse?.url
+        }
+        // optionally check for title and description
+        if (title) updateData.title = title
+        if (description) updateData.description = description
+        if (isPublished) updateData.isPublished = isPublished
+        if (tags) {
+            const tagsResponse = await Video.findById(videoId)
+            updateData.tags = tagArr.concat(tagsResponse.tags)
+        }
+
+        const videoUpdateResponse = await Video.findByIdAndUpdate(
+            videoId,
+            updateData,
+            {new: true}
+        )
+
+        if (!videoUpdateResponse) {
+            throw new ApiError(400, "Something went wrong while updating video in DB")
+        }
+
+        return res
+        .status(200)
+        .json(new ApiResponse(200, videoUpdateResponse, "Video updated successfully"))
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while updating video")
+    }
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: delete video
+
+    if (!videoId) {
+        throw new ApiError(500, "Video Id is required")
+    }
+    
+    try {
+        
+        const deleteResponse = await Video.findByIdAndDelete(videoId)
+
+        if (!deleteResponse) {
+            return res
+            .status(400)
+            .json(new ApiResponse(400, {}, "Something went wrong while deleting video in DB"))
+        }
+
+        return res
+        .status(200)
+        .json(new ApiResponse(200, deleteResponse, "Video deleted successfully"))
+
+    } catch (error) {
+        throw new ApiError(400, "Something went wrong while deleting video")
+    }
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+
+    if (!videoId) {
+        throw new ApiError(500, "Video Id is required")
+    }
+
+    try {
+        const videoDoc = await Video.findById(videoId)
+        // console.log(videoDoc.isPublished);
+        const togglePublishStatusResponse = await Video.findByIdAndUpdate(
+            videoId,
+            {
+                $set: {isPublished: !videoDoc.isPublished}
+            },
+            {new: true}
+        )
+
+        console.log(togglePublishStatusResponse);
+        if (!togglePublishStatusResponse) {
+            throw new ApiError(400, "Something went wrong while Toggling Publish Status in DB")
+        }
+
+        return res
+        .status(200)
+        .json(new ApiResponse(200, togglePublishStatusResponse, "Toggled Publish Status successfully"))
+    } catch (error) {
+        throw new ApiError(400, "Something went wrong while Toggling Publish Status")
+    }
+
 })
 
 export {
