@@ -6,6 +6,13 @@ import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
+const isOwner = async (videoId, req) => {
+    const video = await Video.findById(videoId)
+
+    if (video?.owner.toString() !== req.user?._id.toString()) return false
+
+    return true
+}
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId, tags } = req.query
@@ -51,7 +58,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         .limit(limit)
 
         if (!videoList) {
-            throw new ApiError(500, "something went wrong while searching video")
+            throw new ApiError(400, "something went wrong while searching video")
         }
 
         const data = {
@@ -88,10 +95,10 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Thumbnail is required")
     }
     if (!videoFileRegex.test(videoLocalPath)) {
-        throw new ApiError(500, "Invalid video file")
+        throw new ApiError(400, "Invalid video file")
     }
     if (!thumbnailRegex.test(thumbnailLocalPath)) {
-        throw new ApiError(500, "Invalid thumbnail file")
+        throw new ApiError(400, "Invalid thumbnail file")
     }
 
     try {
@@ -134,7 +141,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     // find and return the video
 
     if (!videoId) {
-        throw new ApiError(500, "VideoId is required")
+        throw new ApiError(400, "VideoId is required")
     }
 
     try {
@@ -163,7 +170,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, videoResponse, "Video fetched successfully"))
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while fetching video")
+        throw new ApiError(400, "Something went wrong while fetching video")
     }
 })
 
@@ -174,7 +181,19 @@ const updateVideo = asyncHandler(async (req, res) => {
     const tagArr = tags.split(",").map((item) => item.trim())
 
     if (!videoId) {
-        throw new ApiError(500, "Video Id is required")
+        throw new ApiError(400, "Video Id is required")
+    }
+    
+    const video = await Video.findById(videoId)
+
+    if (!video) {
+        throw new ApiError(404, "Video does not exists")
+    }
+
+    const authorized = await isOwner(videoId, req)
+
+    if (!authorized) {
+        throw new ApiError(300, "Unauthorized request")
     }
 
     try {
@@ -186,7 +205,7 @@ const updateVideo = asyncHandler(async (req, res) => {
             thumbnailResponse = await uploadOnCloudinary(thumbnailLocalPath)
 
             if (!thumbnailResponse) {
-                throw new ApiError(500, "something went wrong while uploading thumbnail")
+                throw new ApiError(500, "Something went wrong while uploading thumbnail")
             }
         }
 
@@ -217,7 +236,7 @@ const updateVideo = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, videoUpdateResponse, "Video updated successfully"))
 
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while updating video")
+        throw new ApiError(400, "Something went wrong while updating video")
     }
 })
 
@@ -226,7 +245,19 @@ const deleteVideo = asyncHandler(async (req, res) => {
     //TODO: delete video
 
     if (!videoId) {
-        throw new ApiError(500, "Video Id is required")
+        throw new ApiError(400, "Video Id is required")
+    }
+
+    const video = await Video.findById(videoId)
+
+    if (!video) {
+        throw new ApiError(404, "Video does not exists")
+    }
+
+    const authorized = await isOwner(videoId, req)
+
+    if (!authorized) {
+        throw new ApiError(300, "Unauthorized request")
     }
     
     try {
@@ -252,7 +283,19 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
     if (!videoId) {
-        throw new ApiError(500, "Video Id is required")
+        throw new ApiError(400, "Video Id is required")
+    }
+
+    const video = await Video.findById(videoId)
+
+    if (!video) {
+        throw new ApiError(404, "Video does not exists")
+    }
+
+    const authorized = await isOwner(videoId, req)
+
+    if (!authorized) {
+        throw new ApiError(300, "Unauthorized request")
     }
 
     try {
