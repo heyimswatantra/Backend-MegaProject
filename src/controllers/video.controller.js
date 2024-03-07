@@ -8,14 +8,69 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
+    const { page = 1, limit = 10, query, sortBy, sortType, userId, tags } = req.query
     //TODO: get all videos based on query, sort, pagination
+
+    // Define a base query
+    let baseQuery = {};
+    // Filtering based on the query parameter
+    if (query) {
+        baseQuery = {
+            $or: [
+                { title: { $regex: query, $options: 'i' } }, // Case-insensitive title search
+                { description: { $regex: query, $options: 'i' } }, // Case-insensitive description search
+                { tags: { $in: tags } }, // Search by tags
+            ],
+        };
+    } else {
+        baseQuery = { tags: { $in: tags } }; // Only search by tags if query is not provided
+    }
+
+    // Add additional filters if needed, for example, filtering by userId
+    if (userId) {
+        baseQuery.owner = userId;
+    }
+
+    // Define sort options
+    let sortOptions = {};
+    if (sortBy) {
+        sortOptions[sortBy] = sortType === 'desc' ? -1 : 1;
+    } else {
+        // Default sorting if sortBy is not provided
+        sortOptions = { createdAt: -1 };
+    }
+
+    // Pagination options
+    const skip = (page - 1) * limit;
+
+    // console.log("baseQuery : ", baseQuery)
+    try {
+        const videoList = await Video.find(baseQuery)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit)
+
+        if (!videoList) {
+            throw new ApiError(500, "something went wrong while searching video")
+        }
+
+        const data = {
+            length: videoList.length,
+            videoList
+        }
+        return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Video List fetched successfully"))
+    } catch (error) {
+        throw new ApiError(400, error?.message ||"Something went wrong while quering vidoe")
+    }
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description, tags} = req.body
     // TODO: get video, upload to cloudinary, create video
     const userId = req.user?._id
+    const tagArr = tags.split(",").map((item) => item.trim())
 
     // get the video and thumbnail files
     // uploadon cloudinary, get its url and duration
@@ -58,7 +113,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
             description,
             owner: userId,
             duration: uploadVideo.duration,
-            tags: [tags]
+            tags: tagArr
         })
     
         if (!newVideo) {
@@ -116,7 +171,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: update video details like title, description, thumbnail
     const { title, description, isPublished, tags } = req.body
-    const tagArr = tags?.split(", ")
+    const tagArr = tags.split(",").map((item) => item.trim())
 
     if (!videoId) {
         throw new ApiError(500, "Video Id is required")
