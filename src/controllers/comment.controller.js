@@ -1,4 +1,4 @@
-import mongoose from "mongoose"
+import mongoose, {isValidObjectId} from "mongoose"
 import {Comment} from "../models/comment.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
@@ -6,13 +6,7 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 
 const isOwner = async (commnetId, req) => {
     const comment = await Comment.findById(commnetId)
-
-    if (comment?.owner.toString() !== req.user?._id.toString()) {
-        console.log(comment?.owner.toString());
-        console.log(req.user?._id.toString());
-        return false
-    }
-    return true
+    (comment?.owner.toString() !== req.user?._id.toString()) ? false : true
 }
 
 const getVideoComments = asyncHandler(async (req, res) => {
@@ -22,6 +16,10 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
     if (!videoId) {
         throw new ApiError(404, "Video Id is required")
+    }
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
     }
 
     const doesVideoExists = await Comment.find({video: videoId})
@@ -61,14 +59,15 @@ const addComment = asyncHandler(async (req, res) => {
     const { content } = req.body
     const userId = req.user?._id
 
-    if (!userId) {
-        throw new ApiError(400, "Login to add comment")
-    }
     if (!content) {
         throw new ApiError(400, "Comment is required")
     }
     if (!videoId) {
         throw new ApiError(400, "Vidoe Id is required")
+    }
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
     }
 
     try {
@@ -100,6 +99,14 @@ const updateComment = asyncHandler(async (req, res) => {
     const { commentId }  = req.params
     const { content } = req.body
 
+    if (!commentId) {
+        throw new ApiError(400, "Commet Id is required")
+    }
+
+    if (!isValidObjectId(commentId)) {
+        throw new ApiError(400, "Invalid Comment Id")
+    }
+
     const doesCommentExists = await Comment.findById(commentId) 
     if (!doesCommentExists) {
         throw new ApiError(404, "Comment does not exists")
@@ -113,7 +120,7 @@ const updateComment = asyncHandler(async (req, res) => {
 
     try {
         const commentResponse = await Comment.findByIdAndUpdate(
-            commentId,
+            new mongoose.Types.ObjectId(commentId),
             {
                 content
             },
@@ -138,7 +145,15 @@ const updateComment = asyncHandler(async (req, res) => {
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
     const { commentId }  = req.params
-    console.log(req.params)
+    // console.log(req.params)
+
+    if (!commentId) {
+        throw new ApiError(400, "Comment Id is required")
+    }
+
+    if (!isValidObjectId(commentId)) {
+        throw new ApiError(400, "Invalid Comment Id")
+    }
 
     const doesCommentExists = await Comment.findById(commentId) 
     if (!doesCommentExists) {

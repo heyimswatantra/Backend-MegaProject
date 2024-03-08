@@ -9,9 +9,15 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 const toggleSubscription = asyncHandler(async (req, res) => {
     const {channelId} = req.params
     // TODO: toggle subscription
+
     if (!channelId) {
         throw new ApiError(400, "ChannelId is Required")
     }
+
+    if (!isValidObjectId(channelId)) {
+        throw new ApiError(400, "Invalid Channel Id")
+    }
+
     const userId = req.user?._id;
     // create a obj to be used to search in DB 
     const credentials = {
@@ -19,16 +25,21 @@ const toggleSubscription = asyncHandler(async (req, res) => {
         channel: channelId
     }
 
-    console.log(credentials);
+    // console.log(credentials);
     try {
         const subscribed = await Subscription.findOne(credentials)
+
         // if not subscribed, (no such doc exists in DB)
         if (!subscribed) {
+
             // create new doc in DB
             const newSubscriber = await Subscription.create(credentials)
             if (!newSubscriber) {
-                throw new ApiError(500, "Error while subscribing")
+                return res
+                .status(400)
+                .json(new ApiResponse(400, {}, "Error while Subscribing"))
             }
+
             return res
             .status(200)
             .json(
@@ -38,7 +49,9 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             // if already subscribed, just del the record from DB
             const deleteSub = await Subscription.deleteOne(credentials)
             if (!deleteSub) {
-                throw new ApiError(500, "Error while Unsubscribing")
+                return res
+                .status(400)
+                .json(new ApiResponse(400, {}, "Error while Unsubscribing"))
             }
             return res
             .status(200)
@@ -57,6 +70,10 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 
     if (!subscriberId) {
         throw new ApiError(400, "Channel Id required")
+    }
+
+    if (!isValidObjectId(subscriberId)) {
+        throw new ApiError(400, "Invalid Subscriber Id")
     }
 
     try {
@@ -106,10 +123,14 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 // controller to return channel list to which user has subscribed
 const getSubscribedChannels = asyncHandler(async (req, res) => {
     // console.log(req.params," from 107");
-    const {  channelId } = req.params
+    const { channelId } = req.params
 
     if (!channelId) {
         throw new ApiError(400, "Subscriber Id required")
+    }
+
+    if (!isValidObjectId(channelId)) {
+        throw new ApiError(400, "Invalid Channel Id")
     }
 
     try {

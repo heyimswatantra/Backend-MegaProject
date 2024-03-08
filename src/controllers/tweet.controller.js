@@ -5,6 +5,11 @@ import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 
+const isOwner = async (id, req) => {
+    const tweet = await Tweet.findById(id)
+    (tweet?.owner.toString() !== req.user?._id.toString()) ? false : true
+}
+
 const createTweet = asyncHandler(async (req, res) => {
     //TODO: create tweet
     const {content} = req.body
@@ -38,6 +43,10 @@ const getUserTweets = asyncHandler(async (req, res) => {
     
     if (!userId) {
         throw new ApiError(500, "User ID is required")
+    }
+
+    if (!isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid User Id")
     }
 
     try {
@@ -79,6 +88,15 @@ const updateTweet = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Tweet ID is required")
     }
 
+    if (!isValidObjectId(tweetId)) {
+        throw new ApiError(400, "Invalid Tweet Id")
+    }
+
+    const authorized = isOwner(tweetId, req)
+    if (!authorized) {
+        throw new ApiError(300, "Unauthorized Request")
+    }
+
     try {
         const updatedTweet = await Tweet.findByIdAndUpdate(
             tweetId,
@@ -107,6 +125,15 @@ const deleteTweet = asyncHandler(async (req, res) => {
 
     if (!tweetId) {
         throw new ApiError(500, "Tweet ID is required")
+    }
+
+    if (!isValidObjectId(tweetId)) {
+        throw new ApiError(400, "Invalid Tweet Id")
+    }
+
+    const authorized = isOwner(tweetId, req)
+    if (!authorized) {
+        throw new ApiError(300, "Unauthorized Request")
     }
 
     try {

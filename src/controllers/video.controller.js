@@ -8,10 +8,7 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
 const isOwner = async (videoId, req) => {
     const video = await Video.findById(videoId)
-
-    if (video?.owner.toString() !== req.user?._id.toString()) return false
-
-    return true
+    (video?.owner.toString() !== req.user?._id.toString()) ? false : true
 }
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -144,6 +141,10 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "VideoId is required")
     }
 
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
+    }
+
     try {
         const videoViews = await Video.findById(videoId)
         // console.log(videoViews.views);
@@ -183,6 +184,10 @@ const updateVideo = asyncHandler(async (req, res) => {
     if (!videoId) {
         throw new ApiError(400, "Video Id is required")
     }
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
+    }
     
     const video = await Video.findById(videoId)
 
@@ -191,7 +196,6 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     const authorized = await isOwner(videoId, req)
-
     if (!authorized) {
         throw new ApiError(300, "Unauthorized request")
     }
@@ -254,8 +258,11 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video does not exists")
     }
 
-    const authorized = await isOwner(videoId, req)
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
+    }
 
+    const authorized = await isOwner(videoId, req)
     if (!authorized) {
         throw new ApiError(300, "Unauthorized request")
     }
@@ -286,6 +293,10 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Video Id is required")
     }
 
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid Video Id")
+    }
+
     const video = await Video.findById(videoId)
 
     if (!video) {
@@ -293,7 +304,6 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     }
 
     const authorized = await isOwner(videoId, req)
-
     if (!authorized) {
         throw new ApiError(300, "Unauthorized request")
     }
@@ -309,7 +319,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
             {new: true}
         )
 
-        console.log(togglePublishStatusResponse);
+        // console.log(togglePublishStatusResponse);
         if (!togglePublishStatusResponse) {
             throw new ApiError(400, "Something went wrong while Toggling Publish Status in DB")
         }
