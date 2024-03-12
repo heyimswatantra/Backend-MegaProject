@@ -2,11 +2,11 @@
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Features](#features)
-3. [Architecture](#architecture)
-4. [Technologies Used](#technologies-used)
-5. [API Documentation](#api-documentation)
+1. [Introduction](#1-introduction)
+2. [Features](#2-features)
+3. [Architecture](#3-architecture)
+4. [Technologies Used](#4-technologies-used)
+5. [API Documentation](#5-api-documentation)
 
 
 
