@@ -7,7 +7,7 @@
 3. [Architecture](#architecture)
 4. [Technologies Used](#technologies-used)
 5. [API Documentation](#api-documentation)
-   - [Endpoints](#endpoints)
+
 
 
 
