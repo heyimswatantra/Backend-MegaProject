@@ -84,17 +84,8 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler( async (req, res) => {
-    /*
-    req.body se data le aao
-    username OR email ka access lo
-    check in DB if user exists
-    perform password check
-    generate access and refresh token
-    send cookies
-    */
 
     const {username, password, email} = req.body
-    // console.log(req.body);
     
     if(!(username || email)) {
         throw new ApiError(400, "Username or Email is required")
@@ -118,12 +109,8 @@ const loginUser = asyncHandler( async (req, res) => {
         throw new ApiError(401, "Incorrect Password")
     }
 
-    // access and refresh token banao
-    // console.log(user);
+    // generate access and refresh token
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
-
-    // error: .select is not a method
-    // const logginedUser = user.select("-password -refreshToken")
 
     const logginedUser = await User.findById(user._id).select("-password -refreshToken")
 
