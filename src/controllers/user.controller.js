@@ -14,58 +14,30 @@ const options = {
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
-        // console.log("userId :: ", userId);
         const user = await User.findById(userId)
-        // console.log(user);
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
-        // console.log("accessToken :: ", accessToken)
-        // console.log("refreshtoken :: ", refreshToken);
 
-        // setting the refesh token in user document
         user.refreshToken = refreshToken
 
-        // we must save the change to propogate them,
-        // but when we use call save() it fires the mongo models and all fields are validate again,
-        // to avoid that we can pass an option "validateBeforeSave" : "false"
         await user.save({ validateBeforeSave: false })
 
         return {accessToken, refreshToken}
-
     } catch (error) {
         throw new ApiError(500, "Something went wrong while generating refresh and access token")
     }
 }
 
 const registerUser = asyncHandler( async (req, res) => {
-    // steps to register a user
-    // get user details from frontend
-    // validation of passed fields (not empty)
-    // check if user already exits (username, email)
-    // email validation (regex)
-    // check for images: avatar
-    // upload imgs to cloudinary
-    // create to user obj to be pushed to DB 
-    // check for user creation response
-    // remove password and refresh token from DB response
-    // return response
-
     const {fullName, email, username, password} = req.body
-    // console.log(req.body);
-
-    // now we have to validate all the fields
-    // instead of looping or checking all fields one by one, we can use .some() method
-    // some() takes a cb func and return true if any ele of arr satisfies the condition in cb func
 
     if (
         [fullName, email, username, password].some((field) => 
-        field?.trim() === "")
+        field?.trim() === "" || field == undefined)
     ) {
         throw new ApiError(400, "All fields required")
     }
 
-    // find if there already exists a user with same username OR email
-    // we can use operators "$or"
     const existedUser = await User.findOne({
         $or : [{ username }, { email }]
     })
@@ -73,35 +45,31 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(409, "User with email or username already exists")
     }
 
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    //const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    console.log("files", req.files);
+    const avatarLocalPath = req.files?.avatar?.[0]?.path || "";
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path || "";
 
-    let coverImageLocalPath;
-    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        coverImageLocalPath = req.files.coverImage[0].path
+    let avatar, coverImage;
+    if (avatarLocalPath || coverImageLocalPath) {
+        avatar = await uploadOnCloudinary(avatarLocalPath)
+        coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+        if (!avatar) {
+            throw new ApiError(400, "Error while uploading Avatar file.")
+        } else if (!coverImage) {
+            throw new ApiError(400, "Error while uploading Cover Image file.")
+        }
     }
 
-    if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar file is required")
-    }
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-
-    if (!avatar) {
-        throw new ApiError(400, "Avatar file is required")
-    }
-
-    // create user Obj
     const user = await User.create({
         fullName,
-        avatar: avatar.url,
+        avatar: avatar?.url || "",
         coverImage: coverImage?.url || "",
         username: username.toLowerCase(),
         email,
         password
     })
 
-    // remove pass and refresh token
     const createUser = await User.findById(user._id)
     .select("-password -refreshToken")
 
@@ -116,17 +84,8 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler( async (req, res) => {
-    /*
-    req.body se data le aao
-    username OR email ka access lo
-    check in DB if user exists
-    perform password check
-    generate access and refresh token
-    send cookies
-    */
 
     const {username, password, email} = req.body
-    // console.log(req.body);
     
     if(!(username || email)) {
         throw new ApiError(400, "Username or Email is required")
@@ -150,12 +109,8 @@ const loginUser = asyncHandler( async (req, res) => {
         throw new ApiError(401, "Incorrect Password")
     }
 
-    // access and refresh token banao
-    // console.log(user);
+    // generate access and refresh token
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
-
-    // error: .select is not a method
-    // const logginedUser = user.select("-password -refreshToken")
 
     const logginedUser = await User.findById(user._id).select("-password -refreshToken")
 
